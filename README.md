@@ -2,6 +2,32 @@
 
 将原 Excel 宏 + XLL 仓库管理系统，重构为 **前端 + 后端 + 数据库** 的 Web 应用，可部署在 Docker Desktop，通过局域网 `http://<本机IP>:8088` 访问。所有原系统功能均已实现。
 
+## 系统预览
+
+| 业务单据 —— 入库单 | 业务单据 —— 出库单 |
+|:---:|:---:|
+| ![入库单](docs/screenshots/01-inbound-order.png) | ![出库单](docs/screenshots/02-outbound-order.png) |
+
+| 基础资料 —— 货物资料 | 期初库存 |
+|:---:|:---:|
+| ![货物资料](docs/screenshots/03-goods-master.png) | ![期初库存](docs/screenshots/04-opening-stock.png) |
+
+| BOM 管理 | 产品查询（BOM 缺料检查） |
+|:---:|:---:|
+| ![BOM 管理](docs/screenshots/05-bom-management.png) | ![产品查询](docs/screenshots/06-product-query.png) |
+
+| 产品查询 —— 缺料明细 | 系统初始化 |
+|:---:|:---:|
+| ![缺料明细](docs/screenshots/07-product-query-detail.png) | ![系统初始化](docs/screenshots/08-system-init.png) |
+
+| 数据备份 | 数据还原 |
+|:---:|:---:|
+| ![数据备份](docs/screenshots/09-backup.png) | ![数据还原](docs/screenshots/10-restore.png) |
+
+| 系统设置（主题 / 登录背景自定义） | |
+|:---:|:---:|
+| ![系统设置](docs/screenshots/11-system-settings.png) | |
+
 ## 功能清单（对应原 Excel 系统）
 
 | 模块 | 功能 |
