@@ -1,0 +1,19 @@
+services:
+  wms:
+    build: .
+    container_name: kuguanyi-wms
+    ports:
+      - "8089:8088"
+      # 加密地址：浏览器只在加密/本机地址下才允许网页弹出"另存为"窗口
+      # 备份到电脑任意文件夹请用 https://<本机地址>:8443
+      - "8443:8443"
+    volumes:
+      - wms-data:/data
+    environment:
+      # 本机局域网 IP：写进自签证书的可选名称(SAN)，避免浏览器证书告警。
+      # 若以后本机 IP 变了，改这里后删除 certs 重建即可（docker compose restart）
+      - WMS_LAN_IP=192.168.1.88
+    restart: unless-stopped
+
+volumes:
+  wms-data:

@@ -1,0 +1,289 @@
+/* ============================================================
+ * macOS 原生风格视觉层（仅外观：圆角 / 毛玻璃 / 阴影 / 排版）
+ * 不改变任何布局结构与业务逻辑
+ * ============================================================ */
+:root {
+  --mac-radius-win: 12px;
+  --mac-radius-ctl: 7px;
+  --mac-radius-inset: 9px;
+  --mac-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+              "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --mac-blue: #0a84ff;
+  --mac-blue-deep: #0060df;
+  --mac-hair: rgba(255, 255, 255, .55);
+  --mac-shadow-win: 0 26px 70px rgba(0, 22, 45, .30), 0 3px 10px rgba(0, 22, 45, .12);
+  --mac-shadow-card: 0 1px 2px rgba(0, 22, 45, .10), 0 8px 24px rgba(0, 22, 45, .08);
+  --mac-shadow-pop: 0 10px 34px rgba(0, 22, 45, .22), 0 1px 3px rgba(0, 22, 45, .12);
+}
+
+/* ---------- 全局排版 & 桌面底色 ---------- */
+html, body {
+  font-family: var(--mac-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body {
+  background: linear-gradient(160deg, var(--ku-bg) 0%, var(--ku-page) 100%) fixed;
+}
+.app-shell,
+#app > div {
+  font-family: var(--mac-font);
+}
+
+/* macOS 风格滚动条 */
+* { scrollbar-width: thin; scrollbar-color: rgba(120, 130, 145, .55) transparent; }
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: rgba(125, 135, 150, .5);
+  border: 3px solid transparent; border-radius: 8px; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(95, 105, 120, .7); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ---------- 顶部工具条：毛玻璃 + 细分隔线 ---------- */
+.topbar {
+  background: linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.06) 40%, rgba(0,0,0,.06)),
+              linear-gradient(180deg, var(--ku-top1), var(--ku-top2)) !important;
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .18), 0 2px 14px rgba(0, 20, 40, .22);
+}
+.topbar .center-title {
+  font-weight: 600; letter-spacing: 8px; font-size: 22px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+.topbar .title { font-weight: 500; letter-spacing: 3px; }
+.topbar .right { opacity: .92; }
+.el-main.main {
+  background: transparent !important;
+  padding: 16px 18px 24px;
+}
+
+/* ---------- 主页：卡片化 + 拟真图标底座 ---------- */
+.home { padding: 20px 18px; }
+.home .group-row {
+  border: 1px solid rgba(255, 255, 255, .6) !important;
+  border-radius: var(--mac-radius-inset) !important;
+  background: rgba(255, 255, 255, .72) !important;
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: var(--mac-shadow-card);
+  overflow: hidden;
+}
+.home .group-tag {
+  border-radius: var(--mac-radius-inset) 0 0 var(--mac-radius-inset);
+  letter-spacing: 6px; font-weight: 600; font-size: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,0,0,.10)), var(--ku-tag) !important;
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .12);
+}
+.home .group-body { padding: 12px 10px; column-gap: 2px; }
+.home .nav-item {
+  width: 108px; padding: 12px 4px; border-radius: 10px;
+  transition: transform .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+.home .nav-item:hover {
+  background: rgba(255, 255, 255, .85);
+  box-shadow: inset 0 0 0 1px rgba(10, 132, 255, .35), 0 4px 12px rgba(0, 30, 60, .10);
+  transform: translateY(-2px);
+}
+.home .nav-item:active { transform: translateY(0) scale(.98); }
+.home .nav-icon {
+  width: 58px; height: 58px; font-size: 34px; border-radius: 15px !important;
+  background: linear-gradient(180deg, #ffffff, #eef2f6) !important;
+  box-shadow: 0 1px 1px rgba(0, 22, 45, .10), 0 6px 14px rgba(0, 22, 45, .12),
+              inset 0 1px 0 rgba(255, 255, 255, .9), inset 0 -1px 0 rgba(0, 0, 0, .06);
+}
+.home .nav-label { color: #1c2b3a; font-size: 14px; letter-spacing: .5px; }
+
+/* ---------- 表格 / 单据区域 ---------- */
+.ku-page {
+  background: transparent;
+}
+.ku-sheet {
+  border-radius: var(--mac-radius-inset);
+  box-shadow: var(--mac-shadow-card);
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ku-grid-wrap {
+  border-radius: var(--mac-radius-inset);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 30, 60, .10);
+}
+table.ku-grid th, table.ku-grid td {
+  border-color: rgba(0, 40, 80, .12);
+}
+table.ku-grid th {
+  background: linear-gradient(180deg, rgba(255,255,255,.92), var(--ku-head));
+  box-shadow: inset 0 -1px 0 rgba(0, 40, 80, .16);
+  font-weight: 600;
+}
+table.ku-grid tr:last-child td { border-bottom: none; }
+.ku-titlebar {
+  border-radius: var(--mac-radius-inset);
+  border: 1px solid rgba(255, 255, 255, .7);
+  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6));
+  box-shadow: inset 0 -1px 0 rgba(0, 40, 80, .10);
+}
+.ku-toolbar {
+  border-radius: var(--mac-radius-ctl);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .16);
+}
+
+/* ---------- 按钮：胶囊圆角 + 按压反馈 ---------- */
+.ku-btn, .ku-tb {
+  border-radius: var(--mac-radius-ctl) !important;
+  font-weight: 500;
+  letter-spacing: 1px;
+  background-image: linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,0) 55%, rgba(0,0,0,.06));
+  box-shadow: 0 1px 1px rgba(0, 22, 45, .16), inset 0 1px 0 rgba(255, 255, 255, .35);
+  transition: filter .14s ease, transform .1s ease, box-shadow .14s ease;
+  padding-top: 5px; padding-bottom: 5px;
+}
+.ku-btn:hover, .ku-tb:hover { filter: brightness(1.06); box-shadow: 0 2px 6px rgba(0, 22, 45, .20), inset 0 1px 0 rgba(255,255,255,.4); }
+.ku-btn:active, .ku-tb:active { transform: translateY(1px) scale(.99); filter: brightness(.95); }
+.ku-btn:disabled, .ku-tb:disabled { filter: grayscale(.4); opacity: .5; }
+
+.el-button {
+  border-radius: var(--mac-radius-ctl) !important;
+  font-weight: 500;
+  transition: filter .14s ease, box-shadow .14s ease, transform .1s ease;
+}
+.el-button--default {
+  background-image: linear-gradient(180deg, #ffffff, #f2f5f8);
+  box-shadow: 0 1px 1px rgba(0, 22, 45, .10), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.el-button--default:hover { filter: brightness(1.03); }
+.el-button--primary {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,0) 55%, rgba(0,0,0,.08));
+  box-shadow: 0 1px 2px rgba(0, 40, 90, .22), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.el-button:active { transform: translateY(1px); }
+
+/* ---------- 输入框 / 选择器 ---------- */
+.ku-input,
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--mac-radius-ctl) !important;
+  box-shadow: 0 0 0 1px rgba(0, 40, 80, .14), inset 0 1px 2px rgba(0, 30, 60, .06) !important;
+  transition: box-shadow .16s ease, border-color .16s ease;
+}
+.el-input__wrapper:hover,
+.el-select__wrapper:hover { box-shadow: 0 0 0 1px rgba(10, 132, 255, .35), inset 0 1px 2px rgba(0,30,60,.05) !important; }
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.ku-input:focus {
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, .35), 0 0 0 1px rgba(10, 132, 255, .8) !important;
+}
+
+/* ---------- 弹窗：毛玻璃标题栏 + fill 风格按钮 ---------- */
+.el-dialog.win-dlg {
+  border-radius: var(--mac-radius-win) !important;
+  border-color: rgba(255, 255, 255, .5);
+  box-shadow: var(--mac-shadow-win) !important;
+}
+.el-dialog.win-dlg .el-dialog__header {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.04) 45%, rgba(0,0,0,.10)),
+    linear-gradient(180deg, var(--ku-top1), var(--ku-top2));
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .28);
+  padding: 10px 18px;
+  border-radius: var(--mac-radius-win) var(--mac-radius-win) 0 0 !important;
+}
+.el-dialog.win-dlg .el-dialog__title { letter-spacing: 3px; font-weight: 600; }
+.el-dialog.win-dlg .el-dialog__headerbtn {
+  top: 8px; right: 12px; width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255, 255, 255, .18);
+  transition: background-color .15s ease;
+}
+.el-dialog.win-dlg .el-dialog__headerbtn:hover { background: rgba(255, 120, 110, .85); }
+.el-dialog.win-dlg .el-dialog__body { border-radius: 0 0 var(--mac-radius-win) var(--mac-radius-win); }
+
+/* ---------- 资料窗口内部：圆角容器 ---------- */
+.ku-win-main, .ku-tree, .ku-side-tools {
+  border-radius: var(--mac-radius-inset);
+  box-shadow: inset 0 0 0 1px rgba(0, 40, 80, .08);
+}
+.ku-tree .tree-title {
+  background: linear-gradient(180deg, rgba(255,255,255,.9), var(--ku-head)) !important;
+  color: var(--ku-text-soft);
+  font-weight: 600;
+}
+.ku-tree .node.sel { background: var(--mac-blue) !important; }
+.ku-icon-btn {
+  border-radius: var(--mac-radius-ctl) !important;
+  border-color: rgba(0, 40, 80, .2) !important;
+  box-shadow: 0 1px 1px rgba(0, 22, 45, .12), inset 0 1px 0 #fff;
+  transition: transform .12s ease, background-color .14s ease;
+}
+.ku-icon-btn:hover { transform: translateY(-1px); background: #f3f7fb; }
+.ku-icon-btn:active { transform: translateY(0); }
+.ku-win-foot { border-bottom-left-radius: var(--mac-radius-inset); border-bottom-right-radius: var(--mac-radius-inset); }
+
+/* ---------- Element Plus 组件圆角 ---------- */
+.el-message {
+  border-radius: 10px !important;
+  box-shadow: var(--mac-shadow-pop) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.el-message-box {
+  border-radius: var(--mac-radius-win) !important;
+  box-shadow: var(--mac-shadow-win) !important;
+  overflow: hidden;
+}
+.el-popper, .el-select-dropdown, .el-picker__popper {
+  border-radius: 10px !important;
+  box-shadow: var(--mac-shadow-pop) !important;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(0, 40, 80, .10) !important;
+}
+.el-table { border-radius: var(--mac-radius-inset); overflow: hidden; }
+.el-form-item__label { font-weight: 500; }
+.el-tag { border-radius: 6px !important; }
+.el-pagination button { border-radius: 6px !important; }
+
+/* ---------- 设置窗口 ---------- */
+.settings-window {
+  border-radius: var(--mac-radius-win) !important;
+  box-shadow: var(--mac-shadow-win) !important;
+  overflow: hidden;
+}
+.settings-window .panel { border-radius: var(--mac-radius-inset); }
+.settings-window .tab { border-radius: 7px; transition: background-color .15s ease, color .15s ease; }
+.settings-window .tab.active { box-shadow: 0 1px 3px rgba(0, 40, 90, .25); }
+.settings-window .theme-card { border-radius: 10px; }
+
+/* ---------- 登录窗口：macOS 质感 ---------- */
+.login-window {
+  border-radius: 14px;
+  box-shadow: var(--mac-shadow-win);
+  overflow: hidden;
+  background: rgba(255, 255, 255, .86) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+.login-window .win-titlebar {
+  background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.45)) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.login-window .win-head {
+  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,0)) !important;
+}
+.login-btn {
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0, 40, 90, .28), inset 0 1px 0 rgba(255, 255, 255, .35);
+  transition: filter .15s ease, transform .1s ease;
+}
+.login-btn:hover { filter: brightness(1.07); }
+.login-btn:active { transform: translateY(1px) scale(.995); }
+
+/* ---------- 打印时还原（避免外观层影响打印输出） ---------- */
+@media print {
+  .topbar, .login-window, .settings-window, .home .group-row { backdrop-filter: none !important; box-shadow: none !important; }
+}
