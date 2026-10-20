@@ -4,7 +4,10 @@
       <div class="group-tag">{{ g.name }}</div>
       <div class="group-body">
         <div v-for="it in g.items" :key="it.label" class="nav-item" @click="click(it)">
-          <div class="nav-icon">{{ it.icon }}</div>
+          <div class="nav-icon">
+            <img v-if="icons[it.icon]" :src="icons[it.icon]" alt="" />
+            <template v-else>{{ it.icon }}</template>
+          </div>
           <div class="nav-label">{{ it.label }}</div>
         </div>
         <div v-if="!g.items.length" style="width:100%"></div>
@@ -36,6 +39,7 @@ import { ref, reactive, computed, markRaw, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
+import icons from '../icons.js'
 import { loadMe, hasPerm } from '../perm'
 import MasterView from './master/MasterView.vue'
 import Settings from './system/Settings.vue'
@@ -165,6 +169,7 @@ async function doReset() {
   font-size: 36px; border-radius: 8px; background: linear-gradient(145deg, #fdfdfd, #dde5e8);
   box-shadow: 1px 2px 4px rgba(0,0,0,.18);
 }
+.nav-icon img { width: 38px; height: 38px; }
 .nav-label { font-size: 14px; color: #333; }
 .btns { display: flex; justify-content: center; gap: 18px; margin-top: 8px; }
 .ku-btn.warn { color: #ffe36e; }
