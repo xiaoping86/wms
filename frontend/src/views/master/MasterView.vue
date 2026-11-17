@@ -55,7 +55,6 @@
           </table>
         </div>
         <div class="ku-win-foot">
-          <span>每页{{ pageSize }}行</span>
           <span class="pg">
             第{{ page }}页 / 共{{ totalPages }}页
             <a @click="page = 1">首页</a><a @click="page = Math.max(1, page - 1)">上页</a>
@@ -574,6 +573,14 @@ function optsOf(fld) {
   return options[key] || []
 }
 
+// 货物 id -> 所属分类 的索引：期初明细按分类过滤时 O(1) 查找，
+// 避免在 filter 回调里对 6千行×1.2万货物做线性 find（约 8000 万次比较导致卡顿）
+const goodsCatMap = computed(() => {
+  const m = new Map()
+  for (const g of (options.goods || [])) m.set(g.id, g.goods_category_id)
+  return m
+})
+
 const filtered = computed(() => {
   // 选根分类（类别分类/货物分类等）= 显示全部记录
   let data = rows.value
@@ -588,9 +595,10 @@ const filtered = computed(() => {
     const ids = catFilterIds.value
     data = data.filter(r => ids.has(cfg.value.treeField ? r[cfg.value.treeField] : r.id))
   } else if (treeSel.value != null && treeSel.value !== 'ROOT' && cfg.value.isInitial) {
-    // 期初库存：按货物所属分类过滤
+    // 期初库存：按货物所属分类过滤（O(1) Map 查找）
     const ids = catFilterIds.value
-    data = data.filter(r => ids.has((options.goods || []).find(g => g.id === r.goods_id)?.goods_category_id))
+    const gcat = goodsCatMap.value
+    data = data.filter(r => ids.has(gcat.get(r.goods_id)))
   }
   return data
 })
@@ -641,7 +649,10 @@ async function loadOptions() {
 }
 async function load() {
   if (cfg.value.isInitial) {
-    rows.value = await api.list('initial-items')
+    // initial-items 接口不返回 id；不补 id 的话点击行时 selId=undefined，
+    // "selId === r.id" 对所有行都成立 → 整表被套上选中高亮（变黄），删除/编辑也无法定位行
+    const list = await api.list('initial-items')
+    rows.value = list.map((r, i) => ({ ...r, id: r.doc_id + ':' + i }))
     return
   }
   rows.value = await api.list(cfg.value.endpoint)

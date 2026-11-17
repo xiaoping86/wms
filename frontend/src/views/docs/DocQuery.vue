@@ -39,7 +39,6 @@
           </table>
         </div>
         <div class="ku-foot">
-          <span>每页 20 行</span>
           <span>共 {{ rows.length }} 张单据</span>
         </div>
       </div>

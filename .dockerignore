@@ -1,10 +1,30 @@
+# 依赖与缓存
 backend/venv
 backend/__pycache__
 backend/**/__pycache__
-backend/*.db
 backend/.pytest_cache
 frontend/node_modules
 frontend/dist
 **/__pycache__
 *.pyc
+
+# 数据文件与数据目录 —— 一律不进镜像
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite3
+**/*.bak
+data/
+**/data/
+backups/
+**/backups/
+
+# 密钥与证书（运行时自动生成）
+**/secret.key
+**/*.key
+**/*.crt
+certs/
+**/certs/
+
 .git

@@ -5,7 +5,7 @@
         <h3 style="margin:0">{{ cfg.title }}</h3>
         <el-button type="primary" :icon="Plus" @click="openCreate">新增单据</el-button>
       </div>
-      <el-table :data="docs" stripe border>
+      <el-table :data="docs" stripe border max-height="560">
         <el-table-column prop="doc_no" label="单据号" width="160" />
         <el-table-column prop="date" label="日期" width="120" />
         <el-table-column :label="partyLabel" v-if="cfg.party">

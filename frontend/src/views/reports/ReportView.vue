@@ -44,7 +44,6 @@
         </div>
         <div class="ku-foot">
           <span>共 {{ rows.length }} 行</span>
-          <span>每页 {{ pageSize }} 行</span>
         </div>
       </div>
     </div>
@@ -493,7 +492,6 @@ onMounted(async () => {
 
 <style scoped>
 .ftip { color: #ffe36e; font-size: 13px; }
-.scroll table { min-width: 100%; }
 tr.total td { background: var(--ku-head); font-weight: 700; }
 
 /* 原版查询条件窗口：两列布局 + 底部 重置/确定 */

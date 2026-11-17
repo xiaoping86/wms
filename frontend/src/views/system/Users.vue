@@ -18,7 +18,6 @@
         </tbody>
       </table>
       <div class="pager">
-        <span>每页{{ pageSize }}行</span>
         <span class="pager-right">
           第{{ page }}页 / 共{{ totalPages }}页
           <a @click="page = 1">首页</a><a @click="page = Math.max(1, page-1)">上页</a>

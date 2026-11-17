@@ -43,6 +43,7 @@
 
     <!-- 查看 BOM 详情 -->
     <el-dialog draggable overflow v-model="viewOn" :title="'BOM：' + vVal('model')" width="900px" append-to-body class="win-dlg">
+      <div class="dlg-flex">
       <div class="bom-info" v-if="view.values">
         <span class="tag">{{ vVal('model') }}</span>
         <template v-for="d in (view.field_defs || []).filter(x => x.key !== 'model')" :key="d.key">
@@ -65,6 +66,7 @@
           </tbody>
         </table>
       </div>
+      </div>
       <template #footer>
         <button class="bom-btn" @click="exportOne(view)">导出 Excel</button>
         <button class="bom-btn" @click="viewOn = false">关 闭</button>
@@ -73,6 +75,7 @@
 
     <!-- 新建 / 编辑 BOM -->
     <el-dialog draggable overflow v-model="editOn" :title="editTitle" width="1020px" append-to-body class="win-dlg">
+      <div class="dlg-flex">
       <!-- 表头字段：双击字段名可改名，➕ 增加字段，自定义字段可 ✕ 删除 -->
       <div class="edit-head">
         <label v-for="(d, i) in editForm.field_defs" :key="d.key" class="hd">
@@ -121,7 +124,7 @@
           </tbody>
         </table>
       </div>
-
+      </div>
       <template #footer>
         <button class="bom-btn" @click="editOn = false">取消</button>
         <button class="bom-btn primary" @click="save">保 存</button>
@@ -410,6 +413,10 @@ function exportAll() {
 .view-grid-wrap { max-height: 46vh; overflow: auto; border: 1px solid #dbe4ee; border-radius: 8px; }
 .view-grid-wrap.tall { max-height: 40vh; }
 .view-grid th { position: sticky; top: 0; z-index: 1; }
+/* 弹窗拉伸后：让明细区（而非信息条）填满剩余高度，信息条/工具条固定，
+   否则明细按自然行数撑开会把底部按钮挤出窗外 */
+.dlg-flex { display: flex; flex-direction: column; min-height: 0; }
+.dlg-flex > .view-grid-wrap { flex: 1 1 auto; min-height: 0; }
 /* 编辑 */
 .edit-head { display: flex; flex-wrap: wrap; gap: 10px 14px; padding-bottom: 10px; align-items: center; }
 .edit-head label.hd { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #44586c; }

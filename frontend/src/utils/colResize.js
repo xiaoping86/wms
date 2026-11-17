@@ -37,20 +37,39 @@ function usable(table) {
   if (!table || table.tagName !== 'TABLE' || !table.querySelector('thead')) return false
   // Element Plus 表格自带 colgroup 并自行计算布局，插入额外 colgroup 会错位，跳过
   if (table.closest && table.closest('.el-table')) return false
-  for (const th of table.querySelectorAll('thead th')) {
-    if (th.colSpan > 1) return false  // 横向合并列会改变列索引映射，跳过
-  }
+  // 分组/合并表头（colspan/rowspan）已由 columnMap() 支持映射，不再跳过
   return true
 }
 
-// 取叶子（含实际列数最多的）表头行，用于对齐列宽
-function leafRow(table) {
-  let best = null, n = 0
-  table.querySelectorAll('thead tr').forEach(tr => {
-    const c = tr.children.length
-    if (c > n) { n = c; best = tr }
+/**
+ * 解析表头（支持分组/合并单元格）：
+ * 返回 { n: 总列数, host: [每列"最底层"表头单元格] }。
+ * 关键：必须按 HTML 表格模型处理 rowspan 占位——下一行的单元格要从
+ * 未被上方 rowspan 覆盖的列开始排，否则子表头会错误映射到前面的列。
+ * 后渲染的行覆盖先渲染的行：分组子列映射到子表头 th，
+ * rowspan 的普通列映射到自身；因此每一个列边界都是某个 th 的右缘。
+ */
+function columnMap(table) {
+  const rows = Array.from(table.querySelectorAll('thead tr'))
+  const occupied = rows.map(() => new Set())   // occupied[r] = 被上方 rowspan 覆盖的列号
+  const host = []
+  rows.forEach((tr, ri) => {
+    let ci = 0
+    const skip = () => { while (occupied[ri].has(ci)) ci++ }
+    Array.from(tr.children).forEach(th => {
+      const cs = th.colSpan || 1
+      const rs = th.rowSpan || 1
+      skip()
+      for (let k = 0; k < cs; k++) {
+        host[ci + k] = th
+        for (let r2 = ri + 1; r2 < ri + rs; r2++) occupied[r2].add(ci + k)
+      }
+      ci += cs
+    })
   })
-  return best || table.querySelector('thead tr')
+  let n = host.length
+  for (let i = 1; i < n; i++) if (!host[i]) host[i] = host[i - 1]
+  return { n, host }
 }
 
 /**
@@ -93,9 +112,10 @@ function readTableWidth(table) {
  * 若直接量 getBoundingClientRect 会把错误宽度固化）。
  * 若各列之和小于父容器宽度，则按比例放大铺满容器（与原版视觉一致）。
  */
-function measureColumns(table, ths) {
+function measureColumns(table, host) {
   const ctx = document.createElement('canvas').getContext('2d')
-  const out = ths.map(th => {
+  const out = host.map(th => {
+    if (!th) return MIN_W
     const cs = getComputedStyle(th)
     ctx.font = [cs.fontStyle, cs.fontWeight, cs.fontSize, cs.fontFamily].join(' ')
     const label = (th.textContent || '').trim()
@@ -116,15 +136,14 @@ function measureColumns(table, ths) {
 
 function buildColgroup(table, widths) {
   if (!usable(table)) return null
-  const row = leafRow(table)
-  if (!row) return null
-  const ths = Array.from(row.children)
+  const map = columnMap(table)
+  if (!map.n) return null
   // 关键：必须在切换 table-layout:fixed 之前测量各列宽度。
   // 若先插入空 colgroup 再切 fixed，浏览器会把所有列均分表格宽度（窄列瞬间"弹开"），
   // 之后量到的也是弹开后的错误宽度。
   const measured = widths
     ? widths.map(w => Math.max(MIN_W, Math.round(w || 0)))
-    : measureColumns(table, ths)
+    : measureColumns(table, map.host)
   let cg = table.querySelector('colgroup.xls-cols')
   if (!cg) {
     cg = document.createElement('colgroup')
@@ -134,19 +153,70 @@ function buildColgroup(table, widths) {
     table.classList.add('xls-resized')
   }
   cg.innerHTML = ''
-  let sum = 0
-  measured.forEach(w => {
+  let spec = measured.slice()
+  // 首次构建/恢复布局时按容器宽度整体缩放（放大和缩小都要），保证表格打开时
+  // 恰好铺满容器：既不会出现右侧空白，也不会莫名其妙多出横向滚动条。
+  // 缩放只改各列比例、不改变用户原本的相对宽度观感。
+  const pw = parentWidth(table)
+  const sum0 = spec.reduce((a, b) => a + b, 0)
+  if (spec.length && pw > 0 && sum0 > 0 && Math.abs(sum0 - pw) > 1) {
+    const k = pw / sum0
+    spec = spec.map(w => Math.max(MIN_W, Math.round(w * k)))
+    // 逐列取整会产生几像素残差，补到最后一列，保证总和恰好等于容器宽度
+    const sum1 = spec.reduce((a, b) => a + b, 0)
+    if (sum1 !== pw) spec[spec.length - 1] = Math.max(MIN_W, spec[spec.length - 1] - (sum1 - pw))
+  }
+  spec.forEach(w => {
     const col = document.createElement('col')
-    col.style.width = w + 'px'
-    col.dataset.w = w                 // 记录原始宽度，供横向手柄整体缩放使用
+    col.dataset.w = Math.max(MIN_W, Math.round(w))   // 用户设定宽度（权威值）
+    col.style.width = col.dataset.w + 'px'
     cg.appendChild(col)
-    sum += w
   })
-  // 表格宽度 = 各列宽度之和（而非 CSS 的 100%）。
-  // 这样拖动某一列时只改该列宽度、其余列仅整体平移，不会"牵一发而动全身"。
-  table.style.width = sum + 'px'
+  render(table)
   watchTable(table)
   return cg
+}
+
+/**
+ * 按用户设定宽度（col.dataset.w）渲染 colgroup 与表格宽度。
+ *
+ * 关键原则：**表格渲染宽度恒等于各列宽度之和**，绝不让浏览器去平摊宽度。
+ * table-layout:fixed 下，只要表格实际宽度 ≠ 列宽之和（例如被 CSS min-width:100%
+ * 撑到容器宽），浏览器就会把差额按比例分给每一列，于是拖动某一列时连前面的列
+ * 都会跟着变宽变窄。这里由 JS 精确控制总宽，拖拽列之前的列宽恒定不变，
+ * 之后的列只整体平移，不会出现重分配。
+ *
+ * 铺满策略：若各列之和小于容器宽度，差额交给【最后一列】吸收（fill 模式），
+ * 这样表格始终贴满容器右侧，不会出现右侧空白，同时前面的列依旧不受影响。
+ */
+function fillMode(table) {
+  // 用户用过横向手柄把表格缩得比容器窄时，不再强制铺满
+  return table.dataset.xlsFit !== '0'
+}
+
+function render(table) {
+  const cg = table.querySelector('colgroup.xls-cols')
+  if (!cg) return
+  const n = cg.children.length
+  const spec = Array.from(cg.children).map(c => parseFloat(c.dataset.w) || parseFloat(c.style.width) || MIN_W)
+  let rest = 0
+  for (let i = 0; i < n - 1; i++) rest += spec[i]
+  const pw = fillMode(table) ? parentWidth(table) : 0
+  const need = pw - rest
+  // 最后一列渲染宽度 = max(用户设定宽度, 容器剩余宽度)
+  let last = n ? Math.max(MIN_W, Math.max(spec[n - 1], need)) : 0
+  const apply = () => {
+    for (let i = 0; i < n - 1; i++) cg.children[i].style.width = spec[i] + 'px'
+    if (n) cg.children[n - 1].style.width = last + 'px'
+    table.style.width = (rest + last) + 'px'
+  }
+  apply()
+  // 精修：合并边框会让表格实际占用宽度比 style.width 多 1~3px，
+  // 那点溢出会把 .scroll 的横向滚动条挤出来，用最后一列吸收掉。
+  if (n && pw > 0 && need > MIN_W && spec[n - 1] <= need) {
+    const diff = table.offsetWidth - pw
+    if (Math.abs(diff) >= 1) { last = Math.max(MIN_W, last - diff); apply() }
+  }
 }
 
 /**
@@ -162,8 +232,7 @@ function watchTable(table) {
     if (table.querySelector('colgroup.xls-cols')) return
     const key = table.dataset.gridKey
     const c = layoutCache[key]
-    const row = leafRow(table)
-    const n = row ? row.children.length : 0
+    const n = columnMap(table).n
     // 列数一致才用缓存宽度精确还原；否则按当前渲染宽度重新测量
     const w = (c && c.widths && c.widths.length === n) ? c.widths : undefined
     buildColgroup(table, w)
@@ -195,13 +264,30 @@ function nearEdge(th, e) {
   return r.right - e.clientX <= EDGE && r.right - e.clientX > -4
 }
 
+/**
+ * 取列宽之和。prefer=true 时取用户设定宽度之差（dataset.w），
+ * 否则取渲染宽度（style.width）。
+ */
 function readWidths(table) {
   const cg = table.querySelector('colgroup.xls-cols')
   if (!cg) return null
-  return Array.from(cg.children).map(col => parseFloat(col.style.width) || 0)
+  // dataset.w 才是用户真正调好的宽度：最后一列的 style.width 可能被临时拉去吸收铺满余量
+  return Array.from(cg.children).map(col => parseFloat(col.dataset.w) || parseFloat(col.style.width) || 0)
 }
 
-/* ───────── 横向手柄 ───────── */
+/** 表格横向手柄 */
+
+/**
+ * 取前 n-1 列（即除最后一列外）的宽度之和，用于计算最后一列的铺满余量。
+ */
+function restWidth(table) {
+  const cg = table.querySelector('colgroup.xls-cols')
+  if (!cg) return 0
+  let s = 0
+  for (let i = 0; i < cg.children.length - 1; i++)
+    s += parseFloat(cg.children[i].dataset.w) || parseFloat(cg.children[i].style.width) || 0
+  return s
+}
 
 /**
  * 在表格所属父容器（.scroll 或 parentElement）中插入（或复用）横向拖拽手柄。
@@ -280,8 +366,10 @@ function scaleColumns(table, orig, factor) {
   const cg = table.querySelector('colgroup.xls-cols')
   if (!cg) return
   Array.from(cg.children).forEach((c, i) => {
-    const ow = (orig && orig[i]) || parseFloat(c.style.width) || 0
-    c.style.width = Math.max(MIN_W, Math.round(ow * factor)) + 'px'
+    const ow = (orig && orig[i]) || parseFloat(c.dataset.w) || parseFloat(c.style.width) || 0
+    const w = Math.max(MIN_W, Math.round(ow * factor))
+    c.dataset.w = w                 // 缩放结果即新的用户设定宽度
+    c.style.width = w + 'px'
   })
 }
 
@@ -290,8 +378,14 @@ function onHMouseMove(e) {
   const newW = Math.max(MIN_TABLE_W, hDrag.w + (e.clientX - hDrag.x))
   const factor = hDrag.w ? newW / hDrag.w : 1
   scaleColumns(hDrag.table, hDrag.orig, factor)
+  setFitFlag(hDrag.table, newW)
   hDrag.table.style.width = newW + 'px'
   positionHResize(hDrag.table, hDrag.handle)
+}
+
+/** 表格被横向缩到比容器窄时，取消铺满，避免最后一列被重新拉长填回去 */
+function setFitFlag(table, total) {
+  table.dataset.xlsFit = (total < parentWidth(table) - 1) ? '0' : '1'
 }
 
 function onHTouchMove(e) {
@@ -300,6 +394,7 @@ function onHTouchMove(e) {
   const newW = Math.max(MIN_TABLE_W, hDrag.w + (tx - hDrag.x))
   const factor = hDrag.w ? newW / hDrag.w : 1
   scaleColumns(hDrag.table, hDrag.orig, factor)
+  setFitFlag(hDrag.table, newW)
   hDrag.table.style.width = newW + 'px'
   positionHResize(hDrag.table, hDrag.handle)
   e.preventDefault()
@@ -334,8 +429,9 @@ async function onHDouble(e) {
   if (!table) return
   const sum = sumWidths(table) || 1
   const target = parentWidth(table)
+  delete table.dataset.xlsFit            // 双击恢复铺满
   scaleColumns(table, readWidths(table), target / sum)
-  table.style.width = sumWidths(table) + 'px'
+  render(table)
   positionHResize(table, handle)
   window.dispatchEvent(new Event('resize'))
   if (key) {
@@ -354,11 +450,10 @@ async function onHDouble(e) {
  */
 function buildIfCountMatches(table, widths) {
   if (widths && widths.length) {
-    const row = leafRow(table)
-    const n = row ? row.children.length : 0
+    const n = columnMap(table).n
     if (widths.length === n) { buildColgroup(table, widths); return }
   }
-  buildColgroup(table)  // 列数不符或缺省：按表头文字重新测量
+  buildColgroup(table)  // 列数不符或缺省：按表头重新测量
 }
 
 async function applySaved(table) {
@@ -398,12 +493,14 @@ function onMove(e) {
   if (hDrag) return  // 横向拖拽中不响应列宽拖拽
   if (drag) {
     const w = Math.max(MIN_W, drag.w + (e.clientX - drag.x))
-    drag.col.style.width = w + 'px'
-    // 表格总宽跟随各列之和变化：只改当前列，其余列仅平移，不会整体变动
-    drag.table.style.width = sumWidths(drag.table) + 'px'
+    drag.col.dataset.w = w            // 用户设定宽度
+    // 拖的是最后一列时，若已被拖得比"铺满所需宽度"还窄，就取消铺满，
+    // 否则会被容器余量重新拉回去，看起来像拖不动
+    if (drag.last || drag.col === drag.col.parentNode.lastElementChild) setFitFlag(drag.table, w + restWidth(drag.table))
+    // 只改当前列：前面各列宽度恒定，后面各列仅整体平移
+    render(drag.table)
     return
-  }
-  const th = e.target && e.target.closest ? e.target.closest('th') : null
+  }  const th = e.target && e.target.closest ? e.target.closest('th') : null
   if (!th) { document.body.classList.remove('ku-col-hot'); return }
   const table = th.closest('table')
   if (usable(table) && nearEdge(th, e)) document.body.classList.add('ku-col-hot')
@@ -438,10 +535,14 @@ function onDown(e) {
   e.stopPropagation()
   const cg = ensureColgroup(table)
   if (!cg) return
-  const idx = Array.from(th.parentElement.children).indexOf(th)
+  // 分组/合并表头：th 右缘 = 它覆盖的【最后一列】的右边界，故拖拽映射到最后一列
+  const { host } = columnMap(table)
+  let idx = -1
+  for (let i = 0; i < host.length; i++) if (host[i] === th) idx = i
   const col = cg.children[idx]
   if (!col) return
-  drag = { x: e.clientX, w: parseFloat(col.style.width) || th.offsetWidth, col, table }
+  // 起点用【渲染宽度】：最后一列可能正被临时拉长用于铺满，从渲染宽度起拖才不会跳
+  drag = { x: e.clientX, w: parseFloat(col.style.width) || parseFloat(col.dataset.w) || th.offsetWidth, col, table, last: idx === cg.children.length - 1 }
   document.body.classList.add('ku-col-resizing')
 }
 

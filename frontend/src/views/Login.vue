@@ -1,37 +1,44 @@
 <template>
-  <div class="login-page" :style="bgStyle">
-    <div v-if="bg" class="login-scrim"></div>
-    <div class="login-window">
-      <div class="win-titlebar">
-        <span>账号登录</span>
-        <span class="win-x">×</span>
+  <div class="login-box">
+    <!-- 系统设置里自定义的登录背景图（星空画布会覆一层深蓝纱，隐约可见） -->
+    <div v-if="bg" class="bg-img" :style="{ backgroundImage: 'url(' + bg + ')' }"></div>
+    <canvas ref="starCanvas"></canvas>
+    <div class="canvaszz"></div>
+
+    <div class="input-content">
+      <div class="login_tit">
+        <div>
+          <i class="tit-bg left"></i>
+          {{ site }}
+          <i class="tit-bg right"></i>
+        </div>
       </div>
-      <div class="win-head">
-        <div class="site">{{ site }}</div>
+
+      <p class="p user_icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.6-3.6 4.3-5.4 7.5-5.4s5.9 1.8 7.5 5.4"/></svg>
+        <input v-model="form.username" type="text" class="login_txtbx" placeholder="账号" autocomplete="off" @keyup.enter="onLogin" />
+      </p>
+
+      <p class="p pwd_icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="10.5" width="14" height="9.5" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+        <input v-model="form.password" :type="showPwd ? 'text' : 'password'" class="login_txtbx" placeholder="密码" autocomplete="off" @keyup.enter="onLogin" />
+        <a class="eye" :title="showPwd ? '隐藏密码' : '显示密码'" @click="showPwd = !showPwd">{{ showPwd ? '🙈' : '👁' }}</a>
+      </p>
+
+      <div class="opts">
+        <el-checkbox v-model="remember">记住密码</el-checkbox>
       </div>
-      <div class="win-body">
-        <el-form :model="form" @submit.prevent="onLogin" label-position="left">
-          <div class="form-row">
-            <label>账号：</label>
-            <el-input v-model="form.username" size="large" style="flex:1" @keyup.enter="onLogin" />
-          </div>
-          <div class="form-row">
-            <label>密码：</label>
-            <el-input v-model="form.password" type="password" size="large" style="flex:1" show-password @keyup.enter="onLogin" />
-          </div>
-          <div class="form-row opts">
-            <el-checkbox v-model="remember">记住密码</el-checkbox>
-            <span class="motto">不颓废，不消极</span>
-          </div>
-          <button class="login-btn" :disabled="loading" @click="onLogin">登 录</button>
-        </el-form>
+
+      <div class="signup">
+        <button class="gv" :disabled="loading" @click="onLogin">登&thinsp;&thinsp;录</button>
+        <button class="gv" @click="clearForm">清&thinsp;&thinsp;空</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api'
@@ -42,9 +49,95 @@ const router = useRouter()
 const form = ref({ username: '', password: '' })
 const remember = ref(true)
 const loading = ref(false)
+const showPwd = ref(false)
 const bg = ref('')
 const site = ref('Www.KuGuanYi.Com')
-const bgStyle = computed(() => bg.value ? { backgroundImage: `url(${bg.value})` } : {})
+
+/* ───────── 星空动画（移植自参考源码：2500 颗绕轨运动星） ───────── */
+const starCanvas = ref(null)
+let stars = []
+let rafId = 0
+const hue = 217
+
+function random(min, max) {
+  if (arguments.length < 2) { max = min; min = 0 }
+  if (min > max) { const hold = max; max = min; min = hold }
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+function maxOrbit(x, y) {
+  const max = Math.max(x, y)
+  const diameter = Math.round(Math.sqrt(max * max + max * max))
+  return diameter / 2      // 星星移动范围，值越大范围越小
+}
+
+function initStars(w, h) {
+  stars = []
+  const count = 2500      // 星星数量
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      orbitRadius: random(maxOrbit(w, h)),
+      radius: 0,
+      orbitX: w / 2,
+      orbitY: h / 2,
+      timePassed: random(0, count),
+      speed: 0,
+      alpha: random(2, 10) / 10
+    })
+  }
+  stars.forEach(s => {
+    s.radius = random(60, s.orbitRadius) / 18   // 星星大小
+    s.speed = random(s.orbitRadius) / 500000    // 星星移动速度
+  })
+}
+
+function makeStarSprite() {
+  // 预渲染单颗星（径向渐变），避免每帧重建渐变
+  const c2 = document.createElement('canvas')
+  c2.width = 100; c2.height = 100
+  const ctx2 = c2.getContext('2d')
+  const half = 50
+  const g = ctx2.createRadialGradient(half, half, 0, half, half, half)
+  g.addColorStop(0.025, '#CCC')
+  g.addColorStop(0.1, 'hsl(' + hue + ', 61%, 33%)')
+  g.addColorStop(0.25, 'hsl(' + hue + ', 64%, 6%)')
+  g.addColorStop(1, 'transparent')
+  ctx2.fillStyle = g
+  ctx2.beginPath()
+  ctx2.arc(half, half, half, 0, Math.PI * 2)
+  ctx2.fill()
+  return c2
+}
+
+let sprite = null
+let ctx = null
+let w = 0
+let h = 0
+
+function animation() {
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.globalAlpha = 0.5                 // 尾迹（与参考源码一致：每帧半透明覆盖，短尾迹）
+  ctx.fillStyle = 'hsla(' + hue + ', 64%, 6%, 1)'
+  ctx.fillRect(0, 0, w, h)
+  ctx.globalCompositeOperation = 'lighter'
+  for (const s of stars) {
+    const x = Math.sin(s.timePassed) * s.orbitRadius + s.orbitX
+    const y = Math.cos(s.timePassed) * s.orbitRadius + s.orbitY
+    const twinkle = random(10)
+    if (twinkle === 1 && s.alpha > 0) s.alpha -= 0.05
+    else if (twinkle === 2 && s.alpha < 1) s.alpha += 0.05
+    ctx.globalAlpha = s.alpha
+    ctx.drawImage(sprite, x - s.radius / 2, y - s.radius / 2, s.radius, s.radius)
+    s.timePassed += s.speed
+  }
+  rafId = window.requestAnimationFrame(animation)
+}
+
+function onResize() {
+  if (!starCanvas.value) return
+  w = starCanvas.value.width = window.innerWidth
+  h = starCanvas.value.height = window.innerHeight
+  initStars(w, h)
+}
 
 onMounted(async () => {
   try {
@@ -53,13 +146,23 @@ onMounted(async () => {
   } catch (e) {}
   // 登录背景图（系统设置里自定义，免登录读取）
   try {
-    const d = await api.raw.get('/system/login-bg') // 拦截器已返回 data 本体
+    const d = await api.raw.get('/system/login-bg')
     bg.value = (d && d.login_bg) || ''
     if (d && d.theme && d.theme !== currentTheme()) applyTheme(d.theme)
     if (d && d.sys_title) document.title = d.sys_title
-    // 底部网址跟随系统设置里的公司名称（留空则显示默认）
     if (d && d.company_name) site.value = d.company_name
   } catch (e) {}
+
+  ctx = starCanvas.value.getContext('2d')
+  sprite = makeStarSprite()
+  onResize()
+  window.addEventListener('resize', onResize)
+  rafId = window.requestAnimationFrame(animation)
+})
+
+onUnmounted(() => {
+  window.cancelAnimationFrame(rafId)
+  window.removeEventListener('resize', onResize)
 })
 
 async function onLogin() {
@@ -82,48 +185,75 @@ async function onLogin() {
     loading.value = false
   }
 }
+
+function clearForm() {
+  form.value.username = ''
+  form.value.password = ''
+}
 </script>
 
 <style scoped>
-.login-page {
-  height: 100vh; display: flex; align-items: center; justify-content: center; position: relative;
-  background: var(--ku-login-bg); background-size: cover; background-position: center;
-  font-family: "Microsoft YaHei", sans-serif;
+/* 全屏星空画布 */
+.login-box { position: fixed; inset: 0; overflow: hidden; background: #000; font-family: 'Microsoft YaHei', sans-serif; }
+.login-box canvas { position: absolute; inset: 0; z-index: 1; }
+.bg-img { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; }
+.canvaszz { /* 暗角纱，让星空更有层次 */
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .4;
+  background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,10,.85) 100%);
 }
-.login-scrim { position: absolute; inset: 0; background: rgba(15,35,55,.18); backdrop-filter: saturate(120%); }
-.login-window { position: relative; z-index: 1; }
-.login-window {
-  width: 520px; background: var(--ku-panel-soft); border: 1px solid var(--ku-border);
-  box-shadow: 0 6px 24px rgba(0,0,0,.25);
+
+/* 登录框：参考 .input-content —— 居中偏上，透明底 */
+.input-content { position: absolute; z-index: 3; padding: 30px; width: 350px; left: 50%; margin-left: -205px; top: 25%; box-sizing: content-box; }
+
+/* 标题：两侧装饰渐变线 */
+.login_tit { position: absolute; top: -66px; left: -5px; width: 420px; color: #fff; text-align: center; }
+.login_tit > div { position: relative; font-size: 22px; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 8px rgba(29,126,184,.8); }
+.login_tit > p { font-size: 15px; font-family: arial, 'Microsoft YaHei'; margin: 10px 0; color: rgba(255,255,255,.75); letter-spacing: 4px; }
+.tit-bg { position: absolute; top: 50%; display: inline-block; width: 90px; height: 1px;
+  background: linear-gradient(90deg, transparent, #1d7eb8); box-shadow: 0 0 6px #1d7eb8; }
+.tit-bg.left { left: 0; transform: rotate(180deg); }
+.tit-bg.right { right: 0; }
+
+/* 输入行：左侧图标 + 透明蓝框输入 */
+.input-content .p { margin: 10px 0; height: 44px; position: relative; }
+.input-content .p svg {
+  position: absolute; top: 12px; left: 13px; width: 20px; height: 20px;
+  color: #fff; z-index: 2; pointer-events: none; filter: drop-shadow(0 0 3px rgba(29,126,184,.9));
 }
-.win-titlebar {
-  height: 34px; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 12px; background: var(--ku-panel-2); border-bottom: 1px solid var(--ku-border-soft);
-  font-size: 14px; color: var(--ku-text-soft);
+.login_txtbx {
+  font-size: 14px; height: 42px; line-height: 42px; padding: 0 9%;
+  width: 82%; box-sizing: border-box; text-indent: 1.6em;
+  border: 1px solid #1d7eb8; background: rgba(0,0,0,.25); color: #fff;
+  outline: none; border-radius: 2px;
 }
-.win-x { font-size: 20px; color: #666; line-height: 1; }
-.win-head {
-  text-align: center; padding: 34px 0 24px;
-  background: linear-gradient(180deg, var(--ku-sel), #a8d8e8);
+.login_txtbx::placeholder { color: rgba(255,255,255,.9); }
+.login_txtbx:focus, .login_txtbx:hover { box-shadow: 0 0 8px #1d7eb8; border-color: #4aa3e0; transition: all .4s; }
+
+/* 密码可见切换 */
+.eye { position: absolute; right: 8px; top: 0; height: 44px; line-height: 44px; width: 30px;
+  text-align: center; cursor: pointer; z-index: 2; font-size: 15px; opacity: .8; user-select: none; }
+.eye:hover { opacity: 1; }
+
+/* 记住密码 */
+.opts { margin: 2px 0 6px 10px; height: 26px; }
+.opts :deep(.el-checkbox__label) { color: rgba(255,255,255,.85); font-size: 13px; }
+.opts :deep(.el-checkbox__inner) { background: rgba(0,0,0,.25); border-color: #1d7eb8; }
+.opts :deep(.el-checkbox__input.is-checked .el-checkbox__inner) { background: #1d7eb8; border-color: #1d7eb8; }
+
+/* 按钮：蓝渐变 + 悬停发光（对应参考 nav_gv.png） */
+.signup { margin-top: 30px; text-align: center; }
+.signup .gv {
+  background: linear-gradient(180deg, #d9ecfa 0%, #a6d2ef 48%, #c7e4f7 100%);
+  border: 1px solid #1d7eb8; border-radius: 3px;
+  width: 130px; height: 43px; display: inline-block; text-align: center; line-height: 41px;
+  cursor: pointer; margin: 8px 16px; padding: 0;
+  font: 18px/41px 'Microsoft YaHei'; color: #066197; letter-spacing: 6px; text-indent: 6px;
 }
-.brand { font-size: 26px; font-weight: 700; color: var(--ku-accent); letter-spacing: 1px; }
-.site { margin-top: 8px; font-size: 15px; color: var(--ku-muted); letter-spacing: 2px; }
-.win-body { padding: 36px 56px 28px; }
-.form-row { display: flex; align-items: center; margin-bottom: 20px; }
-.form-row label { width: 64px; font-size: 15px; color: #333; }
-.form-row :deep(.el-input__wrapper) { background: #fff; }
-.opts { justify-content: space-between; margin: 4px 0 22px; }
-.opts :deep(.el-checkbox__label) { color: #333; font-size: 14px; }
-.motto { color: var(--ku-muted); font-size: 14px; letter-spacing: 1px; }
-.login-btn {
-  width: 100%; height: 44px; border: none; cursor: pointer;
-  background: linear-gradient(180deg, var(--ku-accent), var(--ku-accent-dark));
-  color: #fff; font-size: 17px; letter-spacing: 10px; border-radius: 3px;
+.signup .gv:hover {
+  background: linear-gradient(180deg, #bfe0f7 0%, #7cbce8 48%, #a4d4f2 100%);
+  color: #1d7eb8;
+  box-shadow: 0 0 10px #1d7eb8;
+  transition-duration: .5s;
 }
-.login-btn:hover { background: linear-gradient(180deg, var(--ku-accent), var(--ku-accent-dark)); }
-.login-btn:disabled { opacity: .6; cursor: default; }
-.win-foot {
-  padding: 8px 12px; font-size: 12px; color: var(--ku-muted);
-  background: var(--ku-panel-2); border-top: 1px solid var(--ku-border-soft);
-}
+.signup .gv:disabled { opacity: .55; cursor: default; box-shadow: none; }
 </style>

@@ -63,9 +63,11 @@ html[data-theme='white'] {
 .ku-grid-wrap { margin: 0 14px; background: #fff; }
 table.ku-grid { width: 100%; border-collapse: collapse; background: #fff; }
 .ku-grid th, .ku-grid td { border: 1px solid var(--ku-border); padding: 3px 6px; font-size: 13px; color: var(--ku-text); }
-.ku-grid th { background: var(--ku-head); font-weight: 600; text-align: center; position: relative; }
+.ku-grid th { background: var(--ku-head); font-weight: 600; text-align: center; position: sticky; top: 0; z-index: 5; }
 .ku-grid th.grp { border-bottom: none; }
 .ku-grid th.sub { border-top: none; }
+/* 双层表头（分组行+子列表头）：第二行 top 下移一个行高，滚动时两行一起吸附 */
+.ku-grid thead tr:nth-child(2) th { top: 26px; }
 .ku-grid tbody tr:nth-child(even) td { background: var(--ku-zebra); }
 .ku-grid tbody tr:hover td { background: var(--ku-hover); }
 .ku-grid td.num { text-align: right; }
@@ -229,6 +231,12 @@ body.ku-col-hot, body.ku-col-hot th { cursor: col-resize; }
 body.ku-col-resizing { cursor: col-resize !important; user-select: none !important; }
 body.ku-col-resizing * { cursor: col-resize !important; user-select: none !important; }
 div:has(> table.xls-resized) { overflow-x: auto; }
+
+/* 已接管列宽的表格：宽度完全由 colgroup 决定。
+   必须清掉组件里的 min-width:100%（如报表 .scroll table），
+   否则表格被撑到容器宽而列宽之和更小，浏览器会把差额平摊到每一列，
+   拖动某一列时前面的列也跟着变宽变窄。 */
+table.xls-resized { min-width: 0 !important; }
 
 /* 含 xls-resized 表格的滚动容器：position:relative 使手柄 absolute 定位锚定于此 */
 .scroll:has(> table.xls-resized) { position: relative; }

@@ -138,7 +138,6 @@
             </table>
           </div>
           <div class="kj-pager">
-            <span>每页20行</span>
             <span class="kj-pginfo">第{{ qPageClamped }}页 / 共{{ qPages }}页</span>
             <button class="kj-pgbtn" :disabled="qPage <= 1" @click="qPage = 1">首页</button>
             <button class="kj-pgbtn" :disabled="qPage <= 1" @click="qPage--">上页</button>
