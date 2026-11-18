@@ -386,6 +386,7 @@ import json as _json
 DEFAULT_SETTINGS = {
     "company_name": "浙江武义瑞峰有限公司",
     "sys_title": "仓库管理系统",
+    "login_star": True,               # 登录页星空动态背景（默认开启）
     "cost_method": "moving_avg",      # moving_avg 移动加权平均 | doc_price 单据价即成本
     "cost_tail_adjust": True,          # 成本尾差自动化调整
     "force_recalc_avg": False,         # 进出库强制重算均价

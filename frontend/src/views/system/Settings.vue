@@ -34,6 +34,10 @@
               <div class="bg-ops">
                 <el-button type="primary" style="background:var(--ku-accent);border-color:var(--ku-accent)" @click="bgVisible = true">🖼 登录背景图管理</el-button>
                 <div class="bg-tip">可自定义登录窗口背后的壁纸，图片从本机文件夹选择；设置后点窗口底部【保存】生效</div>
+                <div class="star-op">
+                  <span>星空动态背景：</span>
+                  <el-switch v-model="s.login_star" active-text="开启" inactive-text="关闭" />
+                </div>
               </div>
             </div>
           </div>
@@ -207,7 +211,7 @@ function pickTheme(t) {
 }
 const s = reactive({
   company_name: '', sys_title: '', theme: 'blue', cost_method: 'moving_avg',
-  login_bg: '',
+  login_bg: '', login_star: true,
   cost_tail_adjust: true, force_recalc_avg: false, est_cost_by_doc_price: true, wh_cost: false,
   avg_digits: 6, cost_digits: 2, qty_digits: 2, price_digits: 2, amount_digits: 2,
   qty_pad_zero: false, price_pad_zero: false, auto_save: true, doc_no_immutable: true,
@@ -353,6 +357,7 @@ function goHome() {
 .bg-none { font-size: 12px; color: var(--ku-muted); background: rgba(255,255,255,.65); padding: 2px 8px; border-radius: 10px; }
 .bg-ops { display: flex; flex-direction: column; gap: 6px; }
 .bg-tip { font-size: 12px; color: var(--ku-muted); max-width: 320px; }
+.star-op { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ku-text); }
 .bg-dlg-body { display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .bg-view {
   width: 100%; height: 240px; border: 1px solid var(--ku-border-soft); border-radius: 8px;

@@ -125,7 +125,8 @@ def public_login_bg():
     """登录页用：免登录读取登录背景图（壁纸），返回 dataURL 或空字符串。"""
     st = get_settings() or {}
     return {"login_bg": st.get("login_bg") or "", "theme": st.get("theme") or "",
-            "sys_title": st.get("sys_title") or "", "company_name": st.get("company_name") or ""}
+            "sys_title": st.get("sys_title") or "", "company_name": st.get("company_name") or "",
+            "login_star": st.get("login_star", True) is not False}
 
 
 # ---------- 用户/权限 ----------

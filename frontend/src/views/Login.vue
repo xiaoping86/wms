@@ -1,9 +1,9 @@
 <template>
-  <div class="login-box">
+  <div class="login-box" :class="{ 'no-star': !starOn }">
     <!-- 系统设置里自定义的登录背景图（星空画布会覆一层深蓝纱，隐约可见） -->
     <div v-if="bg" class="bg-img" :style="{ backgroundImage: 'url(' + bg + ')' }"></div>
-    <canvas ref="starCanvas"></canvas>
-    <div class="canvaszz"></div>
+    <canvas ref="starCanvas" v-show="starOn"></canvas>
+    <div class="canvaszz" v-show="starOn"></div>
 
     <div class="input-content">
       <div class="login_tit">
@@ -52,6 +52,7 @@ const loading = ref(false)
 const showPwd = ref(false)
 const bg = ref('')
 const site = ref('Www.KuGuanYi.Com')
+const starOn = ref(true)          // 星空特效开关（系统设置→登录界面）
 
 /* ───────── 星空动画（移植自参考源码：2500 颗绕轨运动星） ───────── */
 const starCanvas = ref(null)
@@ -151,8 +152,10 @@ onMounted(async () => {
     if (d && d.theme && d.theme !== currentTheme()) applyTheme(d.theme)
     if (d && d.sys_title) document.title = d.sys_title
     if (d && d.company_name) site.value = d.company_name
+    if (d && d.login_star === false) starOn.value = false
   } catch (e) {}
 
+  if (!starOn.value) return   // 关闭星空：不启动画布动画，保留静态背景图
   ctx = starCanvas.value.getContext('2d')
   sprite = makeStarSprite()
   onResize()
@@ -194,9 +197,11 @@ function clearForm() {
 
 <style scoped>
 /* 全屏星空画布 */
-.login-box { position: fixed; inset: 0; overflow: hidden; background: #000; font-family: 'Microsoft YaHei', sans-serif; }
+.login-box { position: fixed; inset: 0; overflow: hidden; background: var(--ku-login-bg, #000); background-size: cover; background-position: center; font-family: 'Microsoft YaHei', sans-serif; }
 .login-box canvas { position: absolute; inset: 0; z-index: 1; }
 .bg-img { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; }
+/* 关闭星空时：给自定义壁纸加暗化层，保证输入框文字可读 */
+.login-box.no-star::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: rgba(5, 16, 28, .45); }
 .canvaszz { /* 暗角纱，让星空更有层次 */
   position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .4;
   background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,10,.85) 100%);
