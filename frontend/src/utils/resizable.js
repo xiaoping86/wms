@@ -19,6 +19,56 @@ const CURSORS = {
   ne: 'nesw-resize',
   sw: 'nesw-resize'
 }
+const STORE_KEY = 'wms_dialog_sizes'
+
+/* ───── 弹窗尺寸记忆（浏览器本地 UI 偏好，不保存业务数据） ───── */
+
+function loadSizes() {
+  try {
+    return JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}
+  } catch (e) {
+    return {}
+  }
+}
+
+function saveSize(key, rect) {
+  if (!key || !rect || rect.width <= 0 || rect.height <= 0) return
+  const all = loadSizes()
+  all[key] = { width: Math.round(rect.width), height: Math.round(rect.height) }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(all)) } catch (e) {}
+}
+
+function forgetSize(key) {
+  if (!key) return
+  const all = loadSizes()
+  delete all[key]
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(all)) } catch (e) {}
+}
+
+/** 给弹窗取稳定 key：优先用内部表格的 data-grid-key，其次标题+样式类。 */
+function sizeKey(dlg) {
+  if (dlg.dataset.kuSizeKey) return dlg.dataset.kuSizeKey
+  const grid = dlg.querySelector('[data-grid-key]')?.dataset.gridKey
+  const title = dlg.querySelector('.el-dialog__title')?.textContent.trim() || ''
+  const cls = Array.from(dlg.classList)
+    .filter(c => c !== 'el-dialog' && !c.startsWith('ku-') && !c.startsWith('el-dialog'))
+    .join('.')
+  dlg.dataset.kuSizeKey = grid ? 'grid:' + grid : 'dlg:' + cls + '|' + title
+  return dlg.dataset.kuSizeKey
+}
+
+/** 恢复上次拖过的尺寸；只恢复宽高，不锁死位置，仍由 Element Plus 居中。 */
+function applySavedSize(dlg, saved) {
+  if (!dlg.isConnected || !saved) return
+  const maxW = Math.max(MIN_W, window.innerWidth - VIEWPORT_GAP)
+  const maxH = Math.max(MIN_H, window.innerHeight - VIEWPORT_GAP)
+  const width = clamp(Math.round(saved.width || 0), MIN_W, maxW)
+  const height = clamp(Math.round(saved.height || 0), MIN_H, maxH)
+  dlg.dataset.kuFixed = '1'
+  dlg.style.width = width + 'px'
+  dlg.style.height = height + 'px'
+  window.dispatchEvent(new Event('resize'))
+}
 
 /** 读取鼠标或单指触摸坐标。 */
 function getPoint(event) {
@@ -38,6 +88,13 @@ function clamp(value, min, max) {
 function setup(dlg) {
   if (!dlg || dlg.dataset.kuResized) return
   dlg.dataset.kuResized = '1'
+
+  const key = sizeKey(dlg)
+  const saved = loadSizes()[key]
+  if (saved && saved.width > 0 && saved.height > 0) {
+    // 等 Element Plus 完成一次布局后再套用保存的宽高，避免被默认 width 覆盖。
+    requestAnimationFrame(() => applySavedSize(dlg, saved))
+  }
 
   let direction = ''
   let dragging = false
@@ -122,6 +179,7 @@ function setup(dlg) {
     document.body.classList.remove('ku-resizing')
     document.body.style.removeProperty('--ku-resize-cursor')
     removeDragListeners()
+    saveSize(key, dlg.getBoundingClientRect())
     window.dispatchEvent(new Event('resize'))
   }
 
@@ -132,8 +190,10 @@ function setup(dlg) {
 
     const rect = dlg.getBoundingClientRect()
     // 首次调整大小时固定当前绝对坐标，避免居中弹窗从两侧同时漂移。
-    if (!dlg.dataset.kuFixed) {
-      dlg.dataset.kuFixed = '1'
+    // kuFixed 只控制内容填充样式；恢复尺寸时已置位但不应锁死位置，故用独立标志。
+    dlg.dataset.kuFixed = '1'
+    if (!dlg.dataset.kuPosFixed) {
+      dlg.dataset.kuPosFixed = '1'
       dlg.style.position = 'absolute'
       dlg.style.margin = '0'
       dlg.style.left = `${Math.max(0, rect.left)}px`
@@ -173,7 +233,9 @@ function setup(dlg) {
     dlg.style.left = ''
     dlg.style.top = ''
     delete dlg.dataset.kuFixed
+    delete dlg.dataset.kuPosFixed
     delete dlg.dataset.kuNatural
+    forgetSize(key)
     event.stopPropagation()
     window.dispatchEvent(new Event('resize'))
   }
