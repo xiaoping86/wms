@@ -243,6 +243,7 @@ table.xls-resized { min-width: 0 !important; }
 
 /* 表格横向宽度拖拽手柄（右下角，8px 热区，ew-resize 光标） */
 .ku-h-resize {
+  display: none !important;
   position: absolute; bottom: 4px;
   width: 8px; height: 20px;
   cursor: ew-resize;

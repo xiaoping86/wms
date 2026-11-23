@@ -16,11 +16,11 @@
 
     <!-- BOM 列表（列名随字段定义） -->
     <div class="bom-card grow">
-      <table class="bom-grid" data-grid-key="bom.head">
+      <table class="ku-grid bom-grid" data-grid-key="bom.head">
         <thead>
           <tr>
             <th style="width:110px">{{ lval('model') }}</th>
-            <th v-for="d in listHeadDefs" :key="d.key" :style="{ width: colW(d.key) }">{{ d.label }}</th>
+            <th v-for="d in listExtraDefs" :key="d.key" :style="{ width: colW(d.key) }">{{ d.label }}</th>
             <th style="width:70px">零件数</th>
             <th style="width:130px">操作</th>
           </tr>
@@ -28,7 +28,7 @@
         <tbody>
           <tr v-for="b in list" :key="b.id">
             <td class="strong">{{ b.values && b.values.model }}</td>
-            <td v-for="d in listHeadDefs" :key="d.key">{{ b.values ? (b.values[d.key] || '') : '' }}</td>
+            <td v-for="d in listExtraDefs" :key="d.key">{{ b.values ? (b.values[d.key] || '') : '' }}</td>
             <td>{{ b.part_count }}</td>
             <td class="ops">
               <button class="bom-btn sm" @click="openView(b)">查看</button>
@@ -36,7 +36,7 @@
               <button class="bom-btn sm danger" @click="del(b)">删除</button>
             </td>
           </tr>
-          <tr v-if="!list.length"><td :colspan="3 + listHeadDefs.length" class="empty">暂无 BOM，点右上角「＋ 新建 BOM」创建</td></tr>
+          <tr v-if="!list.length"><td :colspan="3 + listExtraDefs.length" class="empty">暂无 BOM，点右上角「＋ 新建 BOM」创建</td></tr>
         </tbody>
       </table>
     </div>
@@ -52,7 +52,7 @@
         <span>| {{ (view.items || []).length }}项</span>
       </div>
       <div class="view-grid-wrap">
-        <table class="bom-grid view-grid" data-grid-key="bom.view">
+        <table class="ku-grid bom-grid view-grid" data-grid-key="bom.view">
           <thead>
             <tr><th style="width:56px">序号</th>
                 <th v-for="d in (view.col_defs || [])" :key="d.key" :style="{ width: colW(d.key) }">{{ d.label }}</th></tr>
@@ -100,7 +100,7 @@
                 @paste.prevent="doPaste"></textarea>
 
       <div class="view-grid-wrap tall">
-        <table class="bom-grid edit-grid" data-grid-key="bom.edit">
+        <table class="ku-grid bom-grid edit-grid" data-grid-key="bom.edit">
           <thead>
             <tr>
               <th style="width:48px">序号</th>
@@ -165,6 +165,8 @@ const editForm = reactive({ id: null, values: {}, field_defs: [], col_defs: [], 
 
 const editTitle = computed(() => editForm.id ? ('编辑 BOM：' + (editForm.values.model || '')) : '新建 BOM')
 const listHeadDefs = computed(() => (list.value[0] && list.value[0].field_defs) || DEF_HEAD)
+// 型号已单独作为第一列，这里去掉重复定义，避免列表出现两个“型号”
+const listExtraDefs = computed(() => listHeadDefs.value.filter(d => d.key !== 'model'))
 
 function defsOf(d, dflt) { return (Array.isArray(d) && d.length) ? d : dflt }
 function colW(key) { const w = COL_W[key]; return w ? w + 'px' : undefined }
@@ -390,6 +392,7 @@ function exportAll() {
 .bom-top b { color: #1f5fa9; font-size: 15px; }
 .sp { flex: 1; }
 .bom-card { background: #fff; border: 1px solid #dbe4ee; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.bom-card.grow { padding: 0; }
 .bom-input { border: 1px solid #c9d6e4; border-radius: 6px; padding: 7px 10px; font-size: 13px; outline: none; min-width: 220px; }
 .bom-input:focus { border-color: #2f6fd0; box-shadow: 0 0 0 2px rgba(47,111,208,.15); }
 .bom-btn { border: 1px solid #c9d6e4; background: #fff; color: #24425f; border-radius: 7px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
@@ -399,14 +402,12 @@ function exportAll() {
 .bom-btn.danger { background: #e05252; border-color: #e05252; color: #fff; }
 .bom-btn.danger:hover { background: #c74141; color: #fff; }
 .bom-btn.sm { padding: 4px 10px; font-size: 12px; }
-.bom-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
-.bom-grid th { background: #eef4fb; color: #24425f; text-align: left; padding: 7px 9px; border-bottom: 1px solid #dbe4ee; }
-.bom-grid td { padding: 7px 9px; border-bottom: 1px solid #edf2f8; color: #2b3a4a; }
-.bom-grid tr:hover td { background: #f6f9fd; }
+/* 表格基础样式交给全局 .ku-grid，这里只保留 BOM 专有细节 */
+.bom-grid th, .bom-grid td { white-space: nowrap; }
 .bom-grid td.strong { font-weight: 600; color: #1f5fa9; }
 .bom-grid td.ops { white-space: nowrap; }
-.bom-grid td.ops .bom-btn { margin-right: 5px; }
-.bom-grid td.empty, .bom-grid .empty { text-align: center; color: #9aa7b5; padding: 22px 0; }
+.bom-grid td.ops .bom-btn { margin-right: 4px; padding: 2px 8px; font-size: 12px; }
+.bom-grid td.empty, .bom-grid .empty { text-align: center; color: #9aa7b5; padding: 12px 0; }
 /* 详情 */
 .bom-info { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: #44586c; padding-bottom: 8px; }
 .bom-info .tag { background: #2f6fd0; color: #fff; border-radius: 5px; padding: 2px 8px; font-weight: 600; }

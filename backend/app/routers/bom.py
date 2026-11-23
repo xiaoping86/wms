@@ -2,13 +2,17 @@
 
 - boms / bom_items 两张表：BOM 头字段与明细列均可自定义（field_defs/col_defs 存 JSON 定义，
   自定义值存 extra JSON）；默认表头=型号/名称/电压/电流/编号/备注，默认列=数量/图号/名称/基型/备注。
-- 产品查询：选 BOM × 生产数量，逐条对比当前库存（期初+入库-出库+盘点差异），给出缺口与是否可生产。
-明细与货物匹配规则：图号→货物编码精确匹配；否则名称精确匹配；再否则名称包含匹配。
+- 产品查询：选 BOM × 生产数量，逐条对比库存表数量，给出缺口与是否可生产。
+明细与货物匹配规则：货物资料里“图号/型号”和“名称”是两个独立字段，必须两者同时匹配；
+只在 BOM 没有图号时才允许按唯一名称匹配，避免只按名称把别的型号错配进来。
 """
 import json
+import re
+from difflib import SequenceMatcher
 from fastapi import APIRouter, HTTPException, Depends
 from ..db import conn, WRITE_LOCK, log_op
 from ..deps import get_current_user, require_perm
+from .reports import MOVEMENT_CTE
 
 router = APIRouter(prefix="/api", tags=["bom"])
 
@@ -35,6 +39,28 @@ _ITEM_COLS = {"qty", "dwg", "name", "base", "remark"}
 
 def _clean(v):
     return (str(v).strip() if v is not None else "")
+
+
+def _norm(v):
+    """忽略空格、括号、斜杠、连字符、点号等写法差异，只比较图号/名称本身。"""
+    s = _clean(v)
+    return re.sub(r"[\s()（）\[\]【】/\\\-—_,.·]+", "", s).lower()
+
+
+def _base_model(v):
+    """从图号里取型号前缀：D809-100 / D809A-001 / D809 ∅4 → D809 / D809A / D809。"""
+    key = _norm(v).upper()
+    m = re.match(r"^([A-Z]+\d+[A-Z]*)", key)
+    return m.group(1) if m else ""
+
+
+def _name_core(g):
+    """货物名称去掉开头的型号前缀，留下真正的品名。"""
+    n = _norm(g.get("name"))
+    for prefix in sorted({_norm(g.get("model")), _norm(g.get("code"))} - {""}, key=len, reverse=True):
+        if n.startswith(prefix):
+            return n[len(prefix):]
+    return n
 
 
 def _defs(v, dflt):
@@ -220,29 +246,73 @@ def bom_check(bid: int, qty: float = 1, user=Depends(get_current_user)):
     col_defs = _defs(b["col_defs"], _DEF_COLS)
     head_defs, values = _head_of(b)
     items = _items_of(bid, col_defs)
-    # 当前总库存（调拨一进一出总量不变，不计入）
-    stock_rows = conn().execute("""
-        SELECT goods_id, SUM(q) q FROM (
-          SELECT i.goods_id, SUM(i.qty) q FROM initial_item i GROUP BY i.goods_id
-          UNION ALL SELECT goods_id, SUM(qty) FROM inbound_item GROUP BY goods_id
-          UNION ALL SELECT goods_id, -SUM(qty) FROM outbound_item GROUP BY goods_id
-          UNION ALL SELECT goods_id, SUM(diff_qty) FROM chk_item GROUP BY goods_id
-        ) GROUP BY goods_id
+    # 库存与「库存表」完全同源：直接复用报表的 MOVEMENT_CTE 按货物汇总，
+    # 调拨一进一出总量不变，结果与库存表合计数量一致。
+    stock_rows = conn().execute(MOVEMENT_CTE + """
+        SELECT goods_id, ROUND(SUM(qty), 2) q FROM m GROUP BY goods_id
     """).fetchall()
     stock = {r["goods_id"]: round(r["q"] or 0, 2) for r in stock_rows}
-    goods = [dict(r) for r in conn().execute("SELECT id,code,name,unit FROM goods").fetchall()]
-    by_code = {g["code"]: g for g in goods if g["code"]}
-    by_name = {}
+    goods = [dict(r) for r in conn().execute(
+        "SELECT id,code,name,spec,model,unit FROM goods").fetchall()]
+
+    # 货物资料里“图号”和“名称”是两个独立字段：图号取 型号/编码，名称取 名称。
+    # 第一优先：图号+名称同时精确匹配；第二优先：同型号前缀 + 名称相似。
+    # 不做纯名称匹配，避免把 2081 的“定子总成”错配给 D809-100。
+    pair_map = {}
     for g in goods:
-        by_name.setdefault(g["name"], g)
+        for dk in (_norm(g.get("model")), _norm(g.get("code"))):
+            if dk:
+                pair_map.setdefault((dk, _norm(g.get("name"))), []).append(g)
+    name_map = {}
+    for g in goods:
+        nk = _norm(g.get("name"))
+        if nk:
+            name_map.setdefault(nk, []).append(g)
+
+    def match_goods(dwg, name):
+        dk, nk = _norm(dwg), _norm(name)
+        if dk:
+            cands = {x["id"]: x for x in pair_map.get((dk, nk), [])}
+            if len(cands) == 1:
+                return next(iter(cands.values()))
+
+            # 回退：同型号前缀 + 名称相似。例如 D809-100/定子总成 → D809定子毛坯。
+            base = _base_model(dwg).lower()
+            if base and nk:
+                scored = []
+                for x in goods:
+                    gk = _norm(x.get("model")) or _norm(x.get("code"))
+                    if not gk or not (gk.startswith(base) or base.startswith(gk)):
+                        continue
+                    core = _name_core(x)
+                    score = SequenceMatcher(None, nk, core).ratio()
+                    # 中文品名常是“定子毛坯/定子总成”“连接片/与整流桥连接片”，
+                    # 相同前缀或后缀比中间偶发重合更可信，给一点加权避免错配。
+                    pre = 0
+                    while pre < min(len(nk), len(core)) and nk[pre] == core[pre]:
+                        pre += 1
+                    suf = 0
+                    while suf < min(len(nk), len(core)) - pre and nk[-1-suf] == core[-1-suf]:
+                        suf += 1
+                    score += 0.12 * pre + 0.08 * suf
+                    if score >= 0.45:
+                        scored.append((score, x))
+                if scored:
+                    scored.sort(key=lambda t: (-t[0], t[1]["id"]))
+                    best = scored[0][0]
+                    return next(x for s, x in scored if abs(s - best) < 0.001)
+
+        # 只有 BOM 没有图号时才允许按名称精确匹配，且必须唯一
+        if not dk:
+            cands = {x["id"]: x for x in name_map.get(nk, [])}
+            if len(cands) == 1:
+                return next(iter(cands.values()))
+        return None
 
     rows, short, unmatched = [], 0, 0
     for it in items:
         need = round(float(it.get("qty") or 0) * qty, 2)
-        g = by_code.get(_clean(it.get("dwg"))) or by_name.get(_clean(it.get("name")))
-        if not g and _clean(it.get("name")):
-            cand = [x for x in goods if _clean(it.get("name")) in (x["name"] or "")]
-            g = cand[0] if len(cand) == 1 else None
+        g = match_goods(it.get("dwg"), it.get("name"))
         have = round(stock.get(g["id"], 0), 2) if g else None
         gap = round(need - have, 2) if g else None
         ok = (g is not None and have >= need)
@@ -255,7 +325,8 @@ def bom_check(bid: int, qty: float = 1, user=Depends(get_current_user)):
             "seq": it.get("seq"), "dwg": it.get("dwg"), "name": it.get("name"),
             "base": it.get("base"), "remark": it.get("remark"),
             "per": it.get("qty"), "need": need,
-            "goods_code": g["code"] if g else "", "goods_name": g["name"] if g else "",
+            "goods_code": g["code"] if g else "",
+            "goods_model": g["model"] if g else "", "goods_name": g["name"] if g else "",
             "unit": g["unit"] if g else "", "stock": have, "gap": gap, "ok": ok,
         })
         rows.append(row)

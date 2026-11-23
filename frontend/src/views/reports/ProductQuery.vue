@@ -46,18 +46,20 @@
           </span>
         </div>
         <div class="pq-grid-wrap">
-          <table class="pq-grid" data-grid-key="productquery">
+          <table class="ku-grid pq-grid" data-grid-key="productquery">
             <thead>
               <tr>
                 <th style="width:50px">序号</th><th style="width:130px">图号</th><th>名称</th>
                 <th style="width:110px">基型</th><th style="width:76px">单台用量</th>
                 <th style="width:86px">需求数量</th><th style="width:86px">当前库存</th>
-                <th style="width:80px">缺口</th><th style="width:70px">状态</th><th style="width:90px">对应货物</th>
+                <th style="width:80px">缺口</th><th style="width:70px">状态</th>
+                <th style="width:90px">对应货物</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="r in res.rows" :key="r.seq" :class="{ lack: !r.ok }">
-                <td>{{ r.seq }}</td><td>{{ r.dwg }}</td><td>{{ r.name }}</td><td>{{ r.base }}</td>
+                <td>{{ r.seq }}</td><td>{{ r.dwg }}</td><td>{{ r.name }}</td>
+                <td>{{ r.base }}</td>
                 <td>{{ r.per }}</td><td>{{ r.need }}</td>
                 <td :class="{ zero: r.stock != null && r.stock <= 0 }">{{ r.stock == null ? '—' : r.stock }}</td>
                 <td>{{ r.gap != null && r.gap > 0 ? r.gap : '—' }}</td>
@@ -132,13 +134,11 @@ function doPrint() {
 .pq-sum .sp { flex: 1; }
 .good { color: #1d9e55; font-weight: 600; }
 .bad { color: #d64545; font-weight: 600; }
-/* 表格 */
-.pq-grid-wrap { max-height: 56vh; overflow: auto; border: 1px solid #dbe4ee; border-radius: 8px; }
-.pq-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
-.pq-grid th { background: #eef4fb; color: #24425f; text-align: left; padding: 7px 9px; border-bottom: 1px solid #dbe4ee; position: sticky; top: 0; z-index: 1; }
-.pq-grid td { padding: 7px 9px; border-bottom: 1px solid #edf2f8; color: #2b3a4a; }
-.pq-grid tr:hover td { background: #f6f9fd; }
+/* 表格：基础样式交给全局 .ku-grid，与货物资料/BOM 保持一致；所有行自然展开，不套固定高度滚动框 */
+.pq-grid-wrap { width: 100%; }
+.pq-grid th, .pq-grid td { white-space: nowrap; }
+/* 业务高亮保留：缺料行淡红、零库存红字 */
 .pq-grid tr.lack td { background: #fdf2f2; }
 .pq-grid td.zero { color: #d64545; font-weight: 600; }
-.pq-grid td.empty { text-align: center; color: #9aa7b5; padding: 22px 0; }
+.pq-grid td.empty { text-align: center; color: #9aa7b5; padding: 12px 0; }
 </style>

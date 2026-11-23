@@ -120,7 +120,12 @@ function measureColumns(table, host) {
     ctx.font = [cs.fontStyle, cs.fontWeight, cs.fontSize, cs.fontFamily].join(' ')
     const label = (th.textContent || '').trim()
     const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
-    return Math.max(MIN_W, Math.round(ctx.measureText(label).width + pad + 26))
+    // 组件里显式写死的 px 宽度优先（如 BOM 的编号/备注列），
+    // 否则只按表头文字测量会把长内容列压窄，导致单元格换行撑高整行。
+    const declared = (th.style.width || '').trim()
+    const fixed = /px$/.test(declared) ? parseFloat(declared) : 0
+    const measured = ctx.measureText(label).width + pad + 26
+    return Math.max(MIN_W, Math.round(fixed > 0 ? fixed : measured))
   })
   const sum = out.reduce((a, b) => a + b, 0)
   const pw = parentWidth(table)
@@ -291,6 +296,8 @@ function restWidth(table) {
  * 幂等：同 grid-key 的手柄只插入一次。
  */
 function ensureHResize(table) {
+  // 用户要求取消表格右下角的横向宽度拖拽竖条；列宽拖拽与持久化保持不变。
+  return null
   const key = table.dataset.gridKey
   if (!key) return null
   let container = table.closest('.scroll') || table.parentElement
