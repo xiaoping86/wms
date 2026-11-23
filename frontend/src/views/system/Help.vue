@@ -9,6 +9,10 @@
       <template v-if="tab === 'icons'">
         <h3>先看懂大逻辑（打个比方：像开店）</h3>
         <p>主页图标按 <b>单据 → 报表 → 资料 → 系统</b> 四排排列，正好就是使用顺序：</p>
+        <div class="home-shot">
+          <img src="/help-home.png" alt="仓库管理系统主页界面" />
+          <div class="shot-cap">主页界面总览：单据 / 报表 / 资料 / 系统 四个功能排</div>
+        </div>
         <ul>
           <li><b>第1步 · 建档案</b>（资料排）：先把货物、仓库、库位、往来单位、进出类别、工作人员这些"家底信息"登记好。档案不建，后面单据就没得选。</li>
           <li><b>第2步 · 录家底</b>：用"期初库存"把仓库里现有的货一次性录进去，作为起步账。</li>
@@ -421,6 +425,9 @@ const MODULES = [
 .help-body h3:first-child { margin-top: 0; }
 .help-body p, .help-body li { font-size: 14px; color: #333; line-height: 1.9; }
 .help-body ul { margin: 4px 0 10px 20px; padding: 0; }
+.home-shot { margin: 10px 0 16px; padding: 10px; text-align: center; background: var(--ku-panel-2); border: 1px solid var(--ku-border-soft); border-radius: 8px; }
+.home-shot img { display: block; width: 100%; max-width: 1080px; height: auto; margin: 0 auto; border: 1px solid var(--ku-border-soft); border-radius: 4px; }
+.shot-cap { margin-top: 6px; font-size: 12px; color: var(--ku-muted); }
 .warn { color: #b26a00; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 2px; vertical-align: middle; }
 .dot.g { background: #3ad07a; } .dot.y { background: #ffd04b; } .dot.r { background: #ff5252; }

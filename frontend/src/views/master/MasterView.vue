@@ -387,7 +387,7 @@ const dlgTitle = computed(() => (editing.value ? '编辑' : '添加') + (entity.
 /* 显示列（对应原版窗口）+ 编辑表单字段 */
 const MASTERS = {
   goods: {
-    title: '货物资料', endpoint: 'goods', treeLabel: '货物分类', treeSrc: 'goods-categories', treeField: 'goods_category_id', canImport: true, pageSize: 20,
+    title: '货物资料', endpoint: 'goods', treeLabel: '货物分类', treeSrc: 'goods-categories', treeField: 'goods_category_id', canImport: true, pageSize: 100,
     cols: [
       { key: 'code', label: '编码', w: '70px' }, { key: 'name', label: '名称', w: '90px' },
       { key: 'spec', label: '规格' }, { key: 'model', label: '型号' }, { key: 'unit', label: '单位', w: '50px' },
@@ -491,7 +491,7 @@ const MASTERS = {
     ],
   },
   initial: {
-    title: '期初库存', endpoint: 'initial-items', treeLabel: '货物分类', isInitial: true, pageSize: 20,
+    title: '期初库存', endpoint: 'initial-items', treeLabel: '货物分类', isInitial: true, pageSize: 100,
     cols: [
       { key: 'code', label: '编码', w: '70px' }, { key: 'name', label: '名称' }, { key: 'spec', label: '规格' },
       { key: 'model', label: '型号' }, { key: 'unit', label: '单位', w: '50px' }, { key: 'warehouse', label: '仓库', w: '90px' },

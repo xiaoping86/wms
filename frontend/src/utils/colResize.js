@@ -154,17 +154,13 @@ function buildColgroup(table, widths) {
   }
   cg.innerHTML = ''
   let spec = measured.slice()
-  // 首次构建/恢复布局时按容器宽度整体缩放（放大和缩小都要），保证表格打开时
-  // 恰好铺满容器：既不会出现右侧空白，也不会莫名其妙多出横向滚动条。
-  // 缩放只改各列比例、不改变用户原本的相对宽度观感。
-  const pw = parentWidth(table)
-  const sum0 = spec.reduce((a, b) => a + b, 0)
-  if (spec.length && pw > 0 && sum0 > 0 && Math.abs(sum0 - pw) > 1) {
-    const k = pw / sum0
-    spec = spec.map(w => Math.max(MIN_W, Math.round(w * k)))
-    // 逐列取整会产生几像素残差，补到最后一列，保证总和恰好等于容器宽度
-    const sum1 = spec.reduce((a, b) => a + b, 0)
-    if (sum1 !== pw) spec[spec.length - 1] = Math.max(MIN_W, spec[spec.length - 1] - (sum1 - pw))
+  if (widths) {
+    // 恢复用户保存的列宽：必须逐像素照搬，绝不再按容器缩放，
+    // 否则每次关闭重开都会被拉回容器宽度，用户调的宽度等于没保存。
+    // 关闭最后一列"吸收余量"的铺满模式，保证渲染宽度 == 保存宽度。
+    table.dataset.xlsFit = '0'
+  } else {
+    delete table.dataset.xlsFit   // 首次测量：按容器铺满
   }
   spec.forEach(w => {
     const col = document.createElement('col')
@@ -535,6 +531,12 @@ function onDown(e) {
   e.stopPropagation()
   const cg = ensureColgroup(table)
   if (!cg) return
+  // 首次拖拽时把当前渲染宽度固化为设定宽度并关闭铺满模式：
+  // 这样用户看到多少就保存多少，下次打开逐像素还原，不会被最后一列重新吸收余量。
+  if (fillMode(table)) {
+    Array.from(cg.children).forEach(c => { c.dataset.w = parseFloat(c.style.width) || parseFloat(c.dataset.w) || MIN_W })
+    table.dataset.xlsFit = '0'
+  }
   // 分组/合并表头：th 右缘 = 它覆盖的【最后一列】的右边界，故拖拽映射到最后一列
   const { host } = columnMap(table)
   let idx = -1
