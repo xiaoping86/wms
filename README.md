@@ -4,6 +4,10 @@
 
 ## 系统预览
 
+| 主页面总览 |
+|:---:|
+| ![主页面总览](docs/screenshots/00-home-page.png) |
+
 | 业务单据 —— 入库单 | 业务单据 —— 出库单 |
 |:---:|:---:|
 | ![入库单](docs/screenshots/01-inbound-order.png) | ![出库单](docs/screenshots/02-outbound-order.png) |
